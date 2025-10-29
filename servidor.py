@@ -8,21 +8,24 @@ lock_das_filas = threading.Lock()
 servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 servidor_socket.bind(('0.0.0.0', 12345))
 servidor_socket.listen(5)
-print("Servidor de FILA DE ATENDIMENTO ouvindo na porta 12345...")
+print("Servidor ouvindo na porta 12345...")
 
 def tentar_formar_par():
-    lock_das_filas.acquire()
-    if len(fila_clientes) > 0 and len(fila_atendentes) > 0:
-        print("[MATCHMAKER] Formando um par!")
-        cliente_conn = fila_clientes.pop(0)
-        atendente_conn = fila_atendentes.pop(0)
-        threading.Thread(target = repassar_chat, args = (cliente_conn, atendente_conn, "CLIENTE")).start()
-        threading.Thread(target = repassar_chat, args = (atendente_conn, cliente_conn, "ATENDENTE")).start()
-        cliente_conn.send("CONECTADO: Você está falando com um atendente.".encode())
-        atendente_conn.send("CONECTADO: Você está falando com um cliente.".encode())
-    lock_das_filas.release()
+    with lock_das_filas:
+        if len(fila_clientes) > 0 and len(fila_atendentes) > 0:
+            print("[MATCHMAKER] Formando um par!")
+            (cliente_conn, nome_cliente) = fila_clientes.pop(0)
+            (atendente_conn, nome_atendente) = fila_atendentes.pop(0)
+            
+            # Avisos iniciais
+            cliente_conn.send(f"CONECTADO: Você está falando com o atendente {nome_atendente}.".encode())
+            atendente_conn.send(f"CONECTADO: Você está falando com o cliente {nome_cliente}.".encode())
 
-def repassar_chat(origem, destino, tipo_origem):
+            # Threads de chat bidirecional
+            threading.Thread(target=repassar_chat, args=(cliente_conn, atendente_conn, nome_cliente, "CLIENTE")).start()
+            threading.Thread(target=repassar_chat, args=(atendente_conn, cliente_conn, nome_atendente, "ATENDENTE")).start()
+
+def repassar_chat(origem, destino, nome, tipo_origem):
     while True:
         try:
             dados = origem.recv(1024)
@@ -31,46 +34,42 @@ def repassar_chat(origem, destino, tipo_origem):
             destino.send(dados)
         except:
             break
-    
-    print (f"[CHAT] {tipo_origem} desconectou.")
+
+    print(f"[CHAT] {tipo_origem} ({nome}) desconectou.")
     try:
         if tipo_origem == "CLIENTE":
-            destino.send("FIM: O Cliente desconectou.".encode())
+            destino.send(f"FIM: O cliente {nome} desconectou.".encode())
         else:
-            destino.send("FIM: O Atendente desconectou.".encode())
+            destino.send(f"FIM: O atendente {nome} desconectou.".encode())
     except:
         pass
-    
     origem.close()
     destino.close()
 
 def handle_convidado(conn, addr):
-    print(f"Conexão de {addr}. Perguntando quem é...")
-    
+    print(f"Conexão de {addr}")
     try:
         tipo = conn.recv(1024).decode()
-        lock_das_filas.acquire()
-        
-        if tipo == "CLIENTE":
-            print(f"[{addr}] é um CLIENTE. Colocando na fila.")
-            fila_clientes.append(conn)
-            conn.send("FILA: Você está na fila de clientes. Aguarde...".encode())
-            
-        elif tipo == "ATENDENTE":
-            print(f"[{addr}] é um ATENDENTE. Colocando na fila.")
-            fila_atendentes.append(conn)
-            conn.send("FILA: Você está na fila de atendentes. Aguarde...".encode())
-            
-        else:
-            print(f"[{addr}] não se identificou. Desconectando.")
-            conn.send("ERRO: Identifique-se como CLIENTE ou ATENDENTE".encode())
-            conn.close()
-        
-        lock_das_filas.release()
+        nome = conn.recv(1024).decode()
+
+        with lock_das_filas:
+            if tipo == "CLIENTE":
+                print(f"[{addr}] é um CLIENTE chamado {nome}. Adicionando à fila.")
+                fila_clientes.append((conn, nome))
+                conn.send("FILA: Você está na fila de clientes. Aguarde...".encode())
+            elif tipo == "ATENDENTE":
+                print(f"[{addr}] é um ATENDENTE chamado {nome}. Adicionando à fila.")
+                fila_atendentes.append((conn, nome))
+                conn.send("FILA: Você está na fila de atendentes. Aguarde...".encode())
+            else:
+                conn.send("ERRO: Identifique-se corretamente.".encode())
+                conn.close()
+                return
+
         tentar_formar_par()
-        
-    except:
-        print(f"[{addr}] Erro ou desconexão antes de se identificar.")
+
+    except Exception as e:
+        print(f"[{addr}] erro: {e}")
         conn.close()
 
 while True:
