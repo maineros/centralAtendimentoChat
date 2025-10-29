@@ -6,33 +6,30 @@ def ouvir_servidor(sock):
         try:
             dados = sock.recv(1024).decode()
             if not dados:
-                print("\nDesconectado do servidor.")
+                print("\n[!] Desconectado do servidor.")
                 break
-            print(f"\n[Mensagem Recebida] {dados}")
-            
+            print(f"\n{dados}")
             if dados.startswith("FIM:"):
                 break
         except:
             break
-    print("Sessão encerrada.")
     sock.close()
 
 cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 cliente_socket.connect(('127.0.0.1', 12345))
 
+# Identificação
 cliente_socket.send("CLIENTE".encode())
+nome = input("Digite seu nome: ")
+cliente_socket.send(nome.encode())
 
 threading.Thread(target=ouvir_servidor, args=(cliente_socket,)).start()
 
-print("Conectado como CLIENTE. Aguardando na fila...")
+print(f"Conectado como CLIENTE ({nome}). Aguardando atendimento...")
 try:
     while True:
-        mensagem = input("Sua mensagem: ")
-        if not cliente_socket.fileno() == -1:
-             cliente_socket.send(mensagem.encode())
-        else:
-             break
+        msg = input()
+        cliente_socket.send(f"[{nome}]: {msg}".encode())
 except:
     print("Saindo...")
-
 cliente_socket.close()
