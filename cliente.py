@@ -2,10 +2,7 @@ import socket
 import threading
 
 # funcao para ouvir o servidor
-def ouvir_servidor(sock):
-    # prompt inicial para digitar mensagens
-    print("\nSua mensagem: ", end="", flush=True)
-    
+def ouvir_servidor(sock):    
     while True:
         try:
             # recebe os dados do servidor continuamente
