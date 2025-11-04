@@ -106,7 +106,7 @@ Sua mensagem:
 
 E o atendente receberá:
 ```
-*** Cliente conectado! Você está falando com Laura. ***
+*** Cliente conectado! Você está falando com Fulano. ***
 Sua mensagem:
 ```
 
