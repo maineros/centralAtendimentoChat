@@ -38,7 +38,7 @@ def ouvir_servidor(sock):
 # conexao inicial com o servidor
 try:
     atendente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    atendente_socket.connect(('127.0.0.1', 12345))
+    atendente_socket.connect(('172.172.22.79', 12345))
 except ConnectionRefusedError:
     print("Servidor não encontrado. Encerrando.")
     exit()

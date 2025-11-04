@@ -45,7 +45,7 @@ def ouvir_servidor(sock):
 # inicio da conexao com o servidor
 cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
-    cliente_socket.connect(('127.0.0.1', 12345))
+    cliente_socket.connect(('172.172.22.79', 12345))
 except ConnectionRefusedError:
     print("Não foi possível conectar ao servidor. Verifique se ele está online.")
     exit()
