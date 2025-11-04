@@ -68,7 +68,9 @@ python atendente.py
 Aparecerá:
 
 ```
-Conectado como ATENDENTE. Aguardando clientes...
+Digite seu nome de atendente: Ciclano
+
+Você está online e aguardando clientes.
 ```
 
 ---
@@ -84,17 +86,28 @@ python cliente.py
 Aparecerá:
 
 ```
-Conectado como CLIENTE. Aguardando na fila...
+Digite seu nome: Fulano
+
+Procurando um atendente...
+
+(Você é o número X na fila. Por favor, aguarde...)
 ```
 
 ---
 
 ### 4. Comunicação
 
-Assim que o servidor formar um par (cliente ↔ atendente), ambos receberão:
+Assim que o servidor formar um par (cliente ↔ atendente), o cliente receberá:
 
 ```
-CONECTADO: Você está falando com um cliente/atendente.
+*** Conectado! Você está falando com Ciclano. ***
+Sua mensagem:
+```
+
+E o atendente receberá:
+```
+*** Cliente conectado! Você está falando com Laura. ***
+Sua mensagem:
 ```
 
 A partir daí, podem trocar mensagens livremente.  
