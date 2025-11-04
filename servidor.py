@@ -1,14 +1,14 @@
 import socket
 import threading
 
-# ------------------ VARIÁVEIS GLOBAIS ------------------
-user_states = {}        # Armazena informações sobre cada conexão (nome, tipo, estado, parceiro)
-fila_clientes = []      # Lista de clientes aguardando atendimento
-fila_atendentes = []    # Lista de atendentes aguardando cliente
-ultima_posicao = {}     # Guarda a última posição conhecida de cada cliente na fila
-global_lock = threading.Lock()  # Garante acesso sincronizado entre threads
+# variaveis globais
+user_states = {}        # armazena informacoes sobre cada conexao (nome, tipo, estado, parceiro)
+fila_clientes = []      # lista de clientes aguardando atendimento
+fila_atendentes = []    # lista de atendentes aguardando cliente
+ultima_posicao = {}     # guarda a última posicao conhecida de cada cliente na fila
+global_lock = threading.Lock()  # garante acesso sincronizado entre threads
 
-# ------------------ FUNÇÃO PRINCIPAL DE PAREAMENTO ------------------
+# funcao principal de pareamento
 def tentar_formar_par():
     global_lock.acquire()
 
@@ -16,7 +16,7 @@ def tentar_formar_par():
     fila_clientes[:] = [c for c in fila_clientes if c in user_states]
     fila_atendentes[:] = [a for a in fila_atendentes if a in user_states]
 
-    # Se houver cliente e atendente livres → forma um par
+    # se houver cliente e atendente livres -> forma um par
     if fila_clientes and fila_atendentes:
         print("[MATCHMAKER] Formando um par!")
         cliente_conn = fila_clientes.pop(0)
@@ -25,14 +25,14 @@ def tentar_formar_par():
         cliente_name = user_states[cliente_conn]['name']
         atendente_name = user_states[atendente_conn]['name']
 
-        # Atualiza estados e define o parceiro de cada lado
+        # atualiza estados e define o parceiro de cada lado
         user_states[cliente_conn]['state'] = 'chat'
         user_states[cliente_conn]['partner'] = atendente_conn
 
         user_states[atendente_conn]['state'] = 'chat'
         user_states[atendente_conn]['partner'] = cliente_conn
 
-        # Envia mensagens de confirmação para ambos
+        # envia mensagens de confirmacao para ambos
         try:
             cliente_conn.send(f"CONECTADO: Você está falando com {atendente_name}.".encode())
         except Exception:
@@ -44,7 +44,7 @@ def tentar_formar_par():
             pass
 
     else:
-        # Se ainda não há atendente disponível → atualiza posições na fila
+        # se ainda nao ha atendente disponivel -> atualiza posicoes na fila
         for i, conn in enumerate(fila_clientes):
             posicao_atual = i + 1
             ultima = ultima_posicao.get(conn)
@@ -57,7 +57,7 @@ def tentar_formar_par():
                 except Exception:
                     pass
 
-        # Apenas notifica atendentes que estão livres
+        # apenas notifica atendentes que estao livres
         for conn in fila_atendentes:
             try:
                 conn.send("FILA:OK".encode())
@@ -66,11 +66,11 @@ def tentar_formar_par():
 
     global_lock.release()
 
-# ------------------ DESCONECTAR USUÁRIO ------------------
+# desconectar usuario
 def handle_disconnect(conn):
     global_lock.acquire()
 
-    # Ignora se o usuário já foi removido
+    # ignora se o usuario ja foi removido
     if conn not in user_states:
         global_lock.release()
         return
@@ -78,20 +78,20 @@ def handle_disconnect(conn):
     disconnected_user = user_states.pop(conn)
     print(f"[DISCONNECT] {disconnected_user['name']} ({disconnected_user['type']}) desconectou.")
 
-    # Remove da fila (se estiver)
+    # remove da fila (se estiver)
     if conn in fila_clientes:
         fila_clientes.remove(conn)
     if conn in fila_atendentes:
         fila_atendentes.remove(conn)
 
-    # Remove registro de posição se for cliente
+    # remove registro de posicao se for cliente
     if conn in ultima_posicao:
         ultima_posicao.pop(conn)
 
     partner_conn = disconnected_user['partner']
     partner_to_close = None
 
-    # Se tinha parceiro ativo → avisa o outro lado
+    # se tinha parceiro ativo -> avisa ao outro lado
     if partner_conn and partner_conn in user_states:
         partner_state = user_states[partner_conn]
         print(f"[DISCONNECT] Parceiro {partner_state['name']} será notificado.")
@@ -101,14 +101,14 @@ def handle_disconnect(conn):
         except Exception:
             pass
 
-        # Se cliente saiu → atendente volta pra fila
+        # se cliente saiu -> atendente volta para a fila
         if disconnected_user['type'] == 'CLIENTE':
             print(f"[RE-QUEUE] {partner_state['name']} (Atendente) de volta à fila.")
             partner_state['state'] = 'queue'
             partner_state['partner'] = None
             fila_atendentes.append(partner_conn)
 
-        # Se atendente saiu → cliente é desconectado também
+        # se atendente saiu -> cliente é desconectado tambem
         elif disconnected_user['type'] == 'ATENDENTE':
             print(f"[DISCONNECT] {partner_state['name']} (Cliente) será desconectado.")
             user_states.pop(partner_conn)
@@ -118,25 +118,25 @@ def handle_disconnect(conn):
 
     global_lock.release()
 
-    # Fecha o socket do usuário desconectado
+    # fecha o socket do usuario desconectado
     try:
         conn.close()
     except Exception:
         pass
 
-    # Fecha também o parceiro, se necessário
+    # fecha tambem o parceiro, se necessario
     if partner_to_close:
         try:
             partner_to_close.close()
         except Exception:
             pass
 
-    # Atualiza o sistema após a saída
+    # atualiza o sistema apos a saida
     tentar_formar_par()
 
-# ------------------ LIDA COM NOVAS CONEXÕES ------------------
+# lida com novas conexoes
 def handle_connection(conn, addr):
-    # Identificação do tipo e nome do usuário
+    # identificacao do tipo e nome do usuario
     try:
         tipo = conn.recv(1024).decode()
         if tipo not in ["CLIENTE", "ATENDENTE"]:
@@ -153,7 +153,7 @@ def handle_connection(conn, addr):
 
     print(f"[CONNECT] {nome} ({tipo}) conectou de {addr}.")
 
-    # Registra o novo usuário e adiciona à fila correspondente
+    # registra o novo usuario e adiciona a fila correspondente
     global_lock.acquire()
     user_states[conn] = {'name': nome, 'type': tipo, 'state': 'queue', 'partner': None}
     if tipo == 'CLIENTE':
@@ -162,15 +162,15 @@ def handle_connection(conn, addr):
         fila_atendentes.append(conn)
     global_lock.release()
 
-    # Tenta formar um par
+    # tenta formar um par
     tentar_formar_par()
 
-    # Loop de mensagens (chat ativo)
+    # loop de mensagens (chat ativo)
     while True:
         try:
             dados = conn.recv(1024)
             if not dados:
-                break  # Desconexão limpa
+                break  # desconexao limpa
 
             global_lock.acquire()
             if conn not in user_states:
@@ -190,10 +190,10 @@ def handle_connection(conn, addr):
         except Exception:
             break
 
-    # Ao sair do loop → desconecta o usuário
+    # ao sair do loop -> desconecta o usuario
     handle_disconnect(conn)
 
-# ------------------ LOOP PRINCIPAL DO SERVIDOR ------------------
+# loop principal do servidor
 servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 servidor_socket.bind(('0.0.0.0', 12345))
 servidor_socket.listen(5)
